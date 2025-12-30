@@ -389,7 +389,16 @@ impl DockerDiscovery {
         let mut nodes = Vec::new();
         let mut connections = Vec::new();
 
-        for container in containers {
+        // Sort containers by name for consistent ordering
+        let mut sorted_containers: Vec<_> = containers.to_vec();
+        sorted_containers.sort_by(|a, b| {
+            // Try to extract numeric suffix for natural sorting
+            let num_a = a.name.split('-').last().and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+            let num_b = b.name.split('-').last().and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+            num_a.cmp(&num_b)
+        });
+
+        for container in &sorted_containers {
             let port = container.ports.first().and_then(|p| p.host_port);
             
             nodes.push(FlowchartNode {
@@ -405,35 +414,20 @@ impl DockerDiscovery {
             });
         }
 
-        // Infer connections based on naming patterns and networks
-        for i in 0..containers.len() {
-            for j in 0..containers.len() {
-                if i == j {
-                    continue;
-                }
-
-                let source = &containers[i];
-                let target = &containers[j];
-
-                // Check if they share a network (besides default bridge)
-                let shared_network = source.networks.iter().any(|n| {
-                    n != "bridge" && target.networks.contains(n)
+        // Create a simple chain/loop for homogeneous services (like validators)
+        // Connect each node to the next one, and last to first for a ring
+        if sorted_containers.len() > 1 {
+            for i in 0..sorted_containers.len() {
+                let source = &sorted_containers[i];
+                let target = &sorted_containers[(i + 1) % sorted_containers.len()];
+                
+                connections.push(FlowchartConnection {
+                    id: format!("{}-to-{}", source.id, target.id),
+                    source: source.id.clone(),
+                    target: target.id.clone(),
+                    label: None,
+                    connection_type: ConnectionType::Network,
                 });
-
-                if shared_network {
-                    // Infer connection type from names
-                    let connection_type = self.infer_connection_type(&source.name, &target.name);
-                    
-                    if connection_type.is_some() {
-                        connections.push(FlowchartConnection {
-                            id: format!("{}-to-{}", source.id, target.id),
-                            source: source.id.clone(),
-                            target: target.id.clone(),
-                            label: None,
-                            connection_type: connection_type.unwrap_or(ConnectionType::Network),
-                        });
-                    }
-                }
             }
         }
 

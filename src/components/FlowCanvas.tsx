@@ -196,6 +196,9 @@ export default function FlowCanvas() {
     nodePositions,
     setNodePosition,
     isNavigating,
+    navigateToFlowchart,
+    navigateToFlowchartAsync,
+    isLiveMode,
   } = useFlowStore();
 
   const initialNodes = useMemo(() => {
@@ -245,6 +248,25 @@ export default function FlowCanvas() {
     selectNode(null);
   }, [selectNode]);
 
+  // Handle node double-click for navigation
+  const onNodeDoubleClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      const linkedFlowchart = node.data?.linkedFlowchart as string | undefined;
+      if (linkedFlowchart && !isNavigating) {
+        console.log(
+          "[FlowCanvas] Double-click navigation to:",
+          linkedFlowchart
+        );
+        if (isLiveMode) {
+          navigateToFlowchartAsync(linkedFlowchart);
+        } else {
+          navigateToFlowchart(linkedFlowchart);
+        }
+      }
+    },
+    [isNavigating, isLiveMode, navigateToFlowchart, navigateToFlowchartAsync]
+  );
+
   return (
     <div className="flex-1 transition-view relative">
       {/* Navigation loading indicator */}
@@ -272,12 +294,14 @@ export default function FlowCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
+        onNodeDoubleClick={onNodeDoubleClick}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         nodesDraggable={isDesignMode}
         nodesConnectable={isDesignMode}
         elementsSelectable={true}
+        zoomOnDoubleClick={false}
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{ padding: 0.2 }}

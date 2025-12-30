@@ -161,15 +161,16 @@ export default function ContainerDetailPanel() {
   const StatusIcon = getServiceTypeIcon(selectedNode.type);
   const statusColor = getStatusColor(selectedNode.status);
 
-  const tabs: { id: TabType; label: string; icon: React.ElementType }[] = isContainer
-    ? [
-        { id: "overview", label: "Overview", icon: Activity },
-        { id: "logs", label: "Logs", icon: Terminal },
-        { id: "environment", label: "Env", icon: Key },
-        { id: "volumes", label: "Volumes", icon: Folder },
-        { id: "health", label: "Health", icon: Heart },
-      ]
-    : [{ id: "overview", label: "Overview", icon: Activity }];
+  const tabs: { id: TabType; label: string; icon: React.ElementType }[] =
+    isContainer
+      ? [
+          { id: "overview", label: "Overview", icon: Activity },
+          { id: "logs", label: "Logs", icon: Terminal },
+          { id: "environment", label: "Env", icon: Key },
+          { id: "volumes", label: "Volumes", icon: Folder },
+          { id: "health", label: "Health", icon: Heart },
+        ]
+      : [{ id: "overview", label: "Overview", icon: Activity }];
 
   const isRunning =
     selectedNode.status === "running" || selectedNode.status === "healthy";

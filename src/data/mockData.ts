@@ -30,7 +30,10 @@ export type ConnectionType =
   | "rabbitmq"
   | "websocket"
   | "internal"
-  | "flow"; // for process flows
+  | "flow" // for process flows
+  | "network" // Docker network connection
+  | "volume" // Shared volume
+  | "depends"; // depends_on relationship
 
 export type NodeType = "service" | "process" | "decision" | "group";
 export type ProcessType =
@@ -40,6 +43,18 @@ export type ProcessType =
   | "success"
   | "error"
   | "action";
+
+export interface ContainerStats {
+  cpuPercent: number;
+  memoryUsageMb: number;
+  memoryLimitMb: number;
+  memoryPercent: number;
+  networkRxMb: number;
+  networkTxMb: number;
+  blockReadMb: number;
+  blockWriteMb: number;
+  pids: number;
+}
 
 export interface ServiceNode {
   id: string;
@@ -55,6 +70,8 @@ export interface ServiceNode {
   uptime?: string;
   linkedFlowchart?: string; // ID of deeper flowchart
   color?: string; // for group nodes
+  stats?: ContainerStats; // Real-time container stats
+  imageSizeMb?: number; // Docker image size
   metrics?: {
     requests?: string;
     latency?: string;

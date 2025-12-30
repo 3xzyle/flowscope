@@ -209,6 +209,12 @@ export default function FlowCanvas() {
     layoutMode,
   } = useFlowStore();
 
+  // Get saved positions for current flowchart
+  const savedPositions = useMemo(() => {
+    if (!currentFlowchart) return {};
+    return nodePositions[currentFlowchart.id] || {};
+  }, [currentFlowchart, nodePositions]);
+
   // Filter nodes based on search and filters
   const filteredNodes = useMemo(() => {
     if (!currentFlowchart) return [];
@@ -255,7 +261,7 @@ export default function FlowCanvas() {
     // Apply saved positions in design mode
     if (isDesignMode) {
       return layoutedNodes.map((node) => {
-        const savedPos = nodePositions[node.id];
+        const savedPos = savedPositions[node.id];
         if (savedPos) {
           return { ...node, position: savedPos };
         }
@@ -293,7 +299,7 @@ export default function FlowCanvas() {
     currentFlowchart,
     filteredNodes,
     isDesignMode,
-    nodePositions,
+    savedPositions,
     layoutMode,
     filteredConnections,
   ]);
@@ -315,11 +321,11 @@ export default function FlowCanvas() {
   // Handle node drag end in design mode
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
-      if (isDesignMode) {
-        setNodePosition(node.id, node.position);
+      if (isDesignMode && currentFlowchart) {
+        setNodePosition(currentFlowchart.id, node.id, node.position);
       }
     },
-    [isDesignMode, setNodePosition]
+    [isDesignMode, currentFlowchart, setNodePosition]
   );
 
   // Handle background click to deselect

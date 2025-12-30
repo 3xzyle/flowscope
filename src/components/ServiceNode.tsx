@@ -10,6 +10,8 @@ import {
   Brain,
   HardDrive,
   ChevronRight,
+  Cpu,
+  MemoryStick,
   type LucideIcon,
 } from "lucide-react";
 import type {
@@ -183,7 +185,9 @@ function ServiceNode({ data, selected }: ServiceNodeProps) {
           <div className="flex items-center gap-2 mt-1">
             <span
               className={`w-2 h-2 rounded-full ${colors.bg} ${
-                data.status === "running" ? "animate-pulse" : ""
+                data.status === "running" || data.status === "healthy"
+                  ? "animate-pulse"
+                  : ""
               }`}
             />
             <span className="text-xs text-flow-muted capitalize">
@@ -191,11 +195,46 @@ function ServiceNode({ data, selected }: ServiceNodeProps) {
             </span>
           </div>
 
-          {/* Quick stats */}
-          {(data.cpu || data.memory) && (
-            <div className="flex items-center gap-3 mt-2 text-xs text-flow-muted">
-              {data.cpu && <span>CPU: {data.cpu}</span>}
-              {data.memory && <span>RAM: {data.memory}</span>}
+          {/* Quick stats - show real stats if available, fallback to mock data */}
+          {(data.stats || data.cpu || data.memory) && (
+            <div className="flex items-center gap-2 mt-2 text-[10px]">
+              {data.stats ? (
+                <>
+                  <span
+                    className={`flex items-center gap-1 ${
+                      data.stats.cpuPercent > 80
+                        ? "text-red-400"
+                        : data.stats.cpuPercent > 50
+                        ? "text-yellow-400"
+                        : "text-flow-muted"
+                    }`}
+                  >
+                    <Cpu className="w-3 h-3" />
+                    {data.stats.cpuPercent.toFixed(1)}%
+                  </span>
+                  <span
+                    className={`flex items-center gap-1 ${
+                      data.stats.memoryPercent > 80
+                        ? "text-red-400"
+                        : data.stats.memoryPercent > 50
+                        ? "text-yellow-400"
+                        : "text-flow-muted"
+                    }`}
+                  >
+                    <MemoryStick className="w-3 h-3" />
+                    {data.stats.memoryUsageMb.toFixed(0)}MB
+                  </span>
+                </>
+              ) : (
+                <>
+                  {data.cpu && (
+                    <span className="text-flow-muted">CPU: {data.cpu}</span>
+                  )}
+                  {data.memory && (
+                    <span className="text-flow-muted">RAM: {data.memory}</span>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

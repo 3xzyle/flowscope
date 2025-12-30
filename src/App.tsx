@@ -14,7 +14,7 @@ import {
 } from "./components/LayoutSelector";
 
 function App() {
-  const { selectedNode, currentFlowchart, layoutMode, setNodePositions } =
+  const { selectedNode, currentFlowchart, layoutMode, saveNodePositions } =
     useFlowStore();
   const [showExport, setShowExport] = useState(false);
   const { isConnected, topology, refetch, isLoading } = useLiveData();
@@ -59,9 +59,9 @@ function App() {
     }
 
     if (Object.keys(positions).length > 0) {
-      setNodePositions(positions);
+      saveNodePositions(currentFlowchart.id, positions);
     }
-  }, [currentFlowchart, layoutMode, setNodePositions]);
+  }, [currentFlowchart, layoutMode, saveNodePositions]);
 
   return (
     <ReactFlowProvider>

@@ -4,7 +4,8 @@
 //! network relationships, and generates flowchart data.
 
 use bollard::{
-    container::{ListContainersOptions, LogsOptions, RestartContainerOptions, StopContainerOptions, InspectContainerOptions},
+    container::{ListContainersOptions, LogsOptions, RestartContainerOptions, StopContainerOptions, InspectContainerOptions, StatsOptions},
+    image::ListImagesOptions,
     network::ListNetworksOptions,
     Docker,
 };
@@ -117,6 +118,8 @@ impl DockerDiscovery {
                 created,
                 labels,
                 rust_equivalent,
+                stats: None, // Stats fetched separately for performance
+                image_size_mb: None,
             });
         }
 
@@ -124,6 +127,124 @@ impl DockerDiscovery {
         result.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(result)
+    }
+
+    /// Get container stats (CPU, Memory, Network I/O) for a specific container
+    pub async fn get_container_stats(&self, container_id: &str) -> Result<Option<ContainerStats>, bollard::errors::Error> {
+        let options = StatsOptions {
+            stream: false,
+            one_shot: true,
+        };
+        
+        let mut stream = self.docker.stats(container_id, Some(options));
+        
+        if let Some(result) = stream.next().await {
+            match result {
+                Ok(stats) => {
+                    // Calculate CPU percentage
+                    let cpu_delta = stats.cpu_stats.cpu_usage.total_usage.saturating_sub(
+                        stats.precpu_stats.cpu_usage.total_usage
+                    );
+                    let system_delta = stats.cpu_stats.system_cpu_usage.unwrap_or(0).saturating_sub(
+                        stats.precpu_stats.system_cpu_usage.unwrap_or(0)
+                    );
+                    let num_cpus = stats.cpu_stats.online_cpus.unwrap_or(1) as f64;
+                    
+                    let cpu_percent = if system_delta > 0 && cpu_delta > 0 {
+                        (cpu_delta as f64 / system_delta as f64) * num_cpus * 100.0
+                    } else {
+                        0.0
+                    };
+
+                    // Calculate memory usage
+                    let memory_usage = stats.memory_stats.usage.unwrap_or(0) as f64 / (1024.0 * 1024.0);
+                    let memory_limit = stats.memory_stats.limit.unwrap_or(1) as f64 / (1024.0 * 1024.0);
+                    let memory_percent = if memory_limit > 0.0 {
+                        (memory_usage / memory_limit) * 100.0
+                    } else {
+                        0.0
+                    };
+
+                    // Calculate network I/O
+                    let (network_rx, network_tx) = stats.networks
+                        .as_ref()
+                        .map(|nets| {
+                            nets.values().fold((0u64, 0u64), |(rx, tx), net| {
+                                (rx + net.rx_bytes, tx + net.tx_bytes)
+                            })
+                        })
+                        .unwrap_or((0, 0));
+
+                    // Calculate block I/O
+                    let (block_read, block_write) = stats.blkio_stats.io_service_bytes_recursive
+                        .as_ref()
+                        .map(|io| {
+                            io.iter().fold((0u64, 0u64), |(r, w), entry| {
+                                match entry.op.as_str() {
+                                    "read" | "Read" => (r + entry.value, w),
+                                    "write" | "Write" => (r, w + entry.value),
+                                    _ => (r, w)
+                                }
+                            })
+                        })
+                        .unwrap_or((0, 0));
+
+                    Ok(Some(ContainerStats {
+                        cpu_percent: (cpu_percent * 100.0).round() / 100.0,
+                        memory_usage_mb: (memory_usage * 100.0).round() / 100.0,
+                        memory_limit_mb: (memory_limit * 100.0).round() / 100.0,
+                        memory_percent: (memory_percent * 100.0).round() / 100.0,
+                        network_rx_mb: (network_rx as f64 / (1024.0 * 1024.0) * 100.0).round() / 100.0,
+                        network_tx_mb: (network_tx as f64 / (1024.0 * 1024.0) * 100.0).round() / 100.0,
+                        block_read_mb: (block_read as f64 / (1024.0 * 1024.0) * 100.0).round() / 100.0,
+                        block_write_mb: (block_write as f64 / (1024.0 * 1024.0) * 100.0).round() / 100.0,
+                        pids: stats.pids_stats.current.unwrap_or(0),
+                    }))
+                }
+                Err(_) => Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get all containers with their live stats (more expensive, used for detail views)
+    pub async fn list_containers_with_stats(&self) -> Result<Vec<ContainerInfo>, bollard::errors::Error> {
+        let mut containers = self.list_containers().await?;
+        
+        // Fetch stats for running containers only (to avoid timeout on exited containers)
+        for container in containers.iter_mut() {
+            if matches!(container.status, ContainerStatus::Running | ContainerStatus::Healthy) {
+                if let Ok(Some(stats)) = self.get_container_stats(&container.name).await {
+                    container.stats = Some(stats);
+                }
+            }
+        }
+        
+        Ok(containers)
+    }
+
+    /// Get image sizes for optimization analysis
+    pub async fn list_image_sizes(&self) -> Result<HashMap<String, f64>, bollard::errors::Error> {
+        let options = ListImagesOptions::<String> {
+            all: false,
+            ..Default::default()
+        };
+        
+        let images = self.docker.list_images(Some(options)).await?;
+        let mut sizes: HashMap<String, f64> = HashMap::new();
+        
+        for image in images {
+            let tags = image.repo_tags;
+            if !tags.is_empty() {
+                for tag in tags {
+                    let size_mb = image.size as f64 / (1024.0 * 1024.0);
+                    sizes.insert(tag, (size_mb * 100.0).round() / 100.0);
+                }
+            }
+        }
+        
+        Ok(sizes)
     }
 
     /// Get container details by ID or name
@@ -333,6 +454,7 @@ impl DockerDiscovery {
                 port: None,
                 child_flowchart: Some(format!("{}-overview", cat_id)),
                 metrics: None,
+                stats: None,
             });
         }
 
@@ -412,6 +534,7 @@ impl DockerDiscovery {
                 port,
                 child_flowchart: Some(container.name.clone()),
                 metrics: None,
+                stats: None,
             });
         }
 
@@ -464,6 +587,7 @@ impl DockerDiscovery {
             port: container.ports.first().and_then(|p| p.host_port),
             child_flowchart: None,
             metrics: None,
+            stats: None,
         });
 
         // Find related containers (same network)
@@ -487,6 +611,7 @@ impl DockerDiscovery {
                     port: other.ports.first().and_then(|p| p.host_port),
                     child_flowchart: Some(other.name.clone()),
                     metrics: None,
+                    stats: None,
                 });
 
                 connections.push(FlowchartConnection {

@@ -19,6 +19,9 @@ let fetchLiveFlowchartCallback:
   | ((id: string) => Promise<ServiceFlowchart | null>)
   | null = null;
 
+// Position storage: flowchartId -> nodeId -> position
+type PositionMap = Record<string, Record<string, { x: number; y: number }>>;
+
 interface FlowState {
   // Current flowchart being viewed
   currentFlowchartId: string;
@@ -39,8 +42,8 @@ interface FlowState {
   // Loading state for async navigation
   isNavigating: boolean;
 
-  // Node positions (for design mode persistence)
-  nodePositions: Record<string, { x: number; y: number }>;
+  // Node positions per flowchart (for design mode persistence)
+  nodePositions: PositionMap;
 
   // Search & Filter
   searchQuery: string;
@@ -59,10 +62,16 @@ interface FlowState {
   setLiveFlowchart: (flowchart: ServiceFlowchart) => void;
   setLiveMode: (enabled: boolean) => void;
   setDesignMode: (enabled: boolean) => void;
-  setNodePosition: (nodeId: string, position: { x: number; y: number }) => void;
-  setNodePositions: (
+  setNodePosition: (
+    flowchartId: string,
+    nodeId: string,
+    position: { x: number; y: number }
+  ) => void;
+  saveNodePositions: (
+    flowchartId: string,
     positions: Record<string, { x: number; y: number }>
   ) => void;
+  clearPositions: (flowchartId?: string) => void;
   setFetchCallback: (
     callback: ((id: string) => Promise<ServiceFlowchart | null>) | null
   ) => void;
@@ -83,6 +92,28 @@ function getFlowchart(
   return flowchartData[id];
 }
 
+// Load positions from localStorage
+const loadPersistedPositions = (): PositionMap => {
+  try {
+    const saved = localStorage.getItem("flowscope-positions");
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.warn("Failed to load persisted positions:", e);
+  }
+  return {};
+};
+
+// Save positions to localStorage
+const savePositionsToStorage = (positions: PositionMap) => {
+  try {
+    localStorage.setItem("flowscope-positions", JSON.stringify(positions));
+  } catch (e) {
+    console.warn("Failed to save positions:", e);
+  }
+};
+
 export const useFlowStore = create<FlowState>((set, get) => ({
   currentFlowchartId: "system-overview",
   currentFlowchart: flowchartData["system-overview"],
@@ -91,7 +122,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   isLiveMode: false,
   isDesignMode: false,
   isNavigating: false,
-  nodePositions: {},
+  nodePositions: loadPersistedPositions(),
   searchQuery: "",
   statusFilter: null,
   categoryFilter: null,
@@ -218,17 +249,43 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set({ isDesignMode: enabled });
   },
 
-  setNodePosition: (nodeId: string, position: { x: number; y: number }) => {
-    set((state) => ({
-      nodePositions: {
-        ...state.nodePositions,
+  setNodePosition: (
+    flowchartId: string,
+    nodeId: string,
+    position: { x: number; y: number }
+  ) => {
+    const newPositions = {
+      ...get().nodePositions,
+      [flowchartId]: {
+        ...get().nodePositions[flowchartId],
         [nodeId]: position,
       },
-    }));
+    };
+    set({ nodePositions: newPositions });
+    savePositionsToStorage(newPositions);
   },
 
-  setNodePositions: (positions: Record<string, { x: number; y: number }>) => {
-    set({ nodePositions: positions });
+  saveNodePositions: (
+    flowchartId: string,
+    positions: Record<string, { x: number; y: number }>
+  ) => {
+    const newPositions = {
+      ...get().nodePositions,
+      [flowchartId]: positions,
+    };
+    set({ nodePositions: newPositions });
+    savePositionsToStorage(newPositions);
+  },
+
+  clearPositions: (flowchartId?: string) => {
+    if (flowchartId) {
+      set((state) => {
+        const { [flowchartId]: _, ...rest } = state.nodePositions;
+        return { nodePositions: rest };
+      });
+    } else {
+      set({ nodePositions: {} });
+    }
   },
 
   setFetchCallback: (callback) => {

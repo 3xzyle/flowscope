@@ -3,6 +3,18 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
+export interface ContainerStats {
+  cpuPercent: number;
+  memoryUsageMb: number;
+  memoryLimitMb: number;
+  memoryPercent: number;
+  networkRxMb: number;
+  networkTxMb: number;
+  blockReadMb: number;
+  blockWriteMb: number;
+  pids: number;
+}
+
 export interface ContainerInfo {
   id: string;
   name: string;
@@ -32,6 +44,8 @@ export interface ContainerInfo {
   created: string;
   labels: Record<string, string>;
   rustEquivalent: string | null;
+  stats: ContainerStats | null;
+  imageSizeMb: number | null;
 }
 
 export interface PortMapping {
@@ -128,7 +142,14 @@ export interface FlowchartConnection {
   source: string;
   target: string;
   label: string | null;
-  connectionType: "primary" | "secondary" | "data" | "control" | "network";
+  connectionType:
+    | "primary"
+    | "secondary"
+    | "data"
+    | "control"
+    | "network"
+    | "volume"
+    | "depends";
 }
 
 export interface NetworkInfo {
@@ -248,6 +269,20 @@ class FlowScopeAPI {
     } catch {
       return false;
     }
+  }
+
+  async getContainerStats(id: string): Promise<ContainerStats> {
+    return this.fetch<ContainerStats>(
+      `/container/${encodeURIComponent(id)}/stats`
+    );
+  }
+
+  async getContainersWithStats(): Promise<ContainerInfo[]> {
+    return this.fetch<ContainerInfo[]>("/containers/stats");
+  }
+
+  async getImageSizes(): Promise<Record<string, number>> {
+    return this.fetch<Record<string, number>>("/images/sizes");
   }
 }
 

@@ -24,6 +24,21 @@ pub enum ContainerStatus {
     Dead,
 }
 
+/// Container resource statistics
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerStats {
+    pub cpu_percent: f64,
+    pub memory_usage_mb: f64,
+    pub memory_limit_mb: f64,
+    pub memory_percent: f64,
+    pub network_rx_mb: f64,
+    pub network_tx_mb: f64,
+    pub block_read_mb: f64,
+    pub block_write_mb: f64,
+    pub pids: u64,
+}
+
 impl From<&str> for ContainerStatus {
     fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
@@ -95,6 +110,10 @@ pub struct ContainerInfo {
     pub labels: HashMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rust_equivalent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stats: Option<ContainerStats>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_size_mb: Option<f64>,
 }
 
 /// Port mapping information
@@ -128,6 +147,8 @@ pub enum ConnectionType {
     Data,
     Control,
     Network,
+    Volume,
+    Depends,
 }
 
 /// A node in the flowchart (matches frontend ServiceNode type)
@@ -146,6 +167,8 @@ pub struct FlowchartNode {
     pub child_flowchart: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metrics: Option<NodeMetrics>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stats: Option<ContainerStats>,
 }
 
 /// Metrics for a node
@@ -155,6 +178,8 @@ pub struct NodeMetrics {
     pub cpu_percent: Option<f64>,
     pub memory_mb: Option<u64>,
     pub uptime_hours: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_size_mb: Option<f64>,
 }
 
 /// A connection between nodes (matches frontend ServiceConnection type)

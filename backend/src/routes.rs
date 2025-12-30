@@ -343,3 +343,79 @@ pub async fn start_container(
         }
     }
 }
+
+/// GET /api/container/:id/stats - Get container resource stats
+pub async fn get_container_stats(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    debug!("Getting container stats: {}", id);
+
+    match state.docker.get_container_stats(&id).await {
+        Ok(Some(stats)) => {
+            info!("Got stats for container: {}", id);
+            (StatusCode::OK, Json(stats)).into_response()
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "Container not found or not running",
+                "id": id
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            error!("Failed to get stats for '{}': {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to get container stats",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// GET /api/containers/stats - Get all containers with live stats
+pub async fn get_containers_with_stats(State(state): State<AppState>) -> impl IntoResponse {
+    match state.docker.list_containers_with_stats().await {
+        Ok(containers) => {
+            info!("Listed {} containers with stats", containers.len());
+            (StatusCode::OK, Json(containers)).into_response()
+        }
+        Err(e) => {
+            error!("Failed to list containers with stats: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to list containers with stats",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// GET /api/images/sizes - Get all image sizes
+pub async fn get_image_sizes(State(state): State<AppState>) -> impl IntoResponse {
+    match state.docker.list_image_sizes().await {
+        Ok(sizes) => {
+            info!("Listed {} image sizes", sizes.len());
+            (StatusCode::OK, Json(sizes)).into_response()
+        }
+        Err(e) => {
+            error!("Failed to list image sizes: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to list image sizes",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}

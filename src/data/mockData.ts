@@ -1,7 +1,7 @@
 // Mock data representing a VAL-like ecosystem
 // This simulates what would come from Docker/config scanning
 
-export type ServiceStatus = "running" | "stopped" | "warning" | "error";
+export type ServiceStatus = "running" | "healthy" | "unhealthy" | "exited" | "stopped" | "warning" | "error" | "created" | "paused" | "restarting" | "dead";
 export type ServiceType =
   | "api"
   | "worker"

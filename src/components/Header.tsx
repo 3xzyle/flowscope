@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useFlowStore } from "../store/flowStore";
 import ConnectionStatus from "./ConnectionStatus";
+import SearchFilter from "./SearchFilter";
+import LayoutSelector from "./LayoutSelector";
 
 interface HeaderProps {
   onExportClick: () => void;
@@ -20,13 +22,14 @@ interface HeaderProps {
     unhealthyContainers: number;
   } | null;
   onRefresh?: () => void;
+  onAutoLayout?: () => void;
 }
 
 export default function Header({
   onExportClick,
-  isConnected,
   topology,
   onRefresh,
+  onAutoLayout,
 }: HeaderProps) {
   const {
     currentFlowchart,
@@ -34,6 +37,13 @@ export default function Header({
     navigateToFlowchart,
     isDesignMode,
     setDesignMode,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    categoryFilter,
+    setCategoryFilter,
+    layoutMode,
+    setLayoutMode,
   } = useFlowStore();
 
   return (
@@ -65,6 +75,24 @@ export default function Header({
           <Workflow className="w-3 h-3" />
           <span>Coding Loop</span>
         </button>
+
+        <div className="h-6 w-px bg-flow-border mx-1" />
+
+        {/* Search & Filter */}
+        <SearchFilter
+          onSearchChange={setSearchQuery}
+          onStatusFilter={setStatusFilter}
+          onCategoryFilter={setCategoryFilter}
+          activeStatusFilter={statusFilter}
+          activeCategoryFilter={categoryFilter}
+        />
+
+        {/* Layout Selector */}
+        <LayoutSelector
+          currentLayout={layoutMode}
+          onLayoutChange={setLayoutMode}
+          onAutoLayout={onAutoLayout || (() => {})}
+        />
       </div>
 
       <div className="flex items-center gap-4">

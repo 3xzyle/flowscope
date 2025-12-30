@@ -66,6 +66,11 @@ async fn main() -> Result<()> {
         .route("/api/networks", get(routes::get_networks))
         .route("/api/flowchart/:id", get(routes::get_flowchart))
         .route("/api/container/:id", get(routes::get_container_detail))
+        .route("/api/container/:id/detail", get(routes::get_container_full_detail))
+        .route("/api/container/:id/logs", get(routes::get_container_logs))
+        .route("/api/container/:id/restart", axum::routing::post(routes::restart_container))
+        .route("/api/container/:id/stop", axum::routing::post(routes::stop_container))
+        .route("/api/container/:id/start", axum::routing::post(routes::start_container))
         .route("/ws", get(websocket::ws_handler))
         .with_state(state)
         .layer(

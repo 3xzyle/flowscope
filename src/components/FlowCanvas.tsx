@@ -19,6 +19,11 @@ import ServiceEdge from "./ServiceEdge";
 import DecisionNode from "./DecisionNode";
 import GroupNode from "./GroupNode";
 import ProcessNode from "./ProcessNode";
+import {
+  applyGridLayout,
+  applyHierarchicalLayout,
+  applyForceLayout,
+} from "./LayoutSelector";
 import type {
   ServiceNode as ServiceNodeType,
   ServiceConnection,
@@ -84,7 +89,6 @@ function layoutGridNodes(nodes: ServiceNodeType[]): Node[] {
 // Vertical layout for process/workflow diagrams
 function layoutProcessNodes(nodes: ServiceNodeType[]): Node[] {
   const nodeHeight = 60;
-  const nodeWidth = 180;
   const gapY = 50;
   const triggerGap = 200;
 
@@ -199,11 +203,53 @@ export default function FlowCanvas() {
     navigateToFlowchart,
     navigateToFlowchartAsync,
     isLiveMode,
+    searchQuery,
+    statusFilter,
+    categoryFilter,
+    layoutMode,
   } = useFlowStore();
+
+  // Filter nodes based on search and filters
+  const filteredNodes = useMemo(() => {
+    if (!currentFlowchart) return [];
+    
+    return currentFlowchart.nodes.filter((node) => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = node.label.toLowerCase().includes(query);
+        const matchesDesc = node.description?.toLowerCase().includes(query);
+        const matchesId = node.id.toLowerCase().includes(query);
+        if (!matchesName && !matchesDesc && !matchesId) return false;
+      }
+
+      // Status filter
+      if (statusFilter && node.status !== statusFilter) {
+        return false;
+      }
+
+      // Category filter - check type field which maps to category
+      if (categoryFilter && node.type !== categoryFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [currentFlowchart, searchQuery, statusFilter, categoryFilter]);
+
+  // Filter connections to only show ones between visible nodes
+  const filteredConnections = useMemo(() => {
+    if (!currentFlowchart) return [];
+    
+    const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
+    return currentFlowchart.connections.filter(
+      (conn) => visibleNodeIds.has(conn.source) && visibleNodeIds.has(conn.target)
+    );
+  }, [currentFlowchart, filteredNodes]);
 
   const initialNodes = useMemo(() => {
     if (!currentFlowchart) return [];
-    const layoutedNodes = layoutNodes(currentFlowchart.nodes);
+    const layoutedNodes = layoutNodes(filteredNodes);
 
     // Apply saved positions in design mode
     if (isDesignMode) {
@@ -216,13 +262,35 @@ export default function FlowCanvas() {
       });
     }
 
+    // Apply layout mode transformations
+    if (layoutMode !== "default" && layoutedNodes.length > 0) {
+      let newPositions: Record<string, { x: number; y: number }> = {};
+      
+      switch (layoutMode) {
+        case "grid":
+          newPositions = applyGridLayout(layoutedNodes);
+          break;
+        case "hierarchical":
+          newPositions = applyHierarchicalLayout(layoutedNodes, filteredConnections);
+          break;
+        case "force":
+          newPositions = applyForceLayout(layoutedNodes, filteredConnections);
+          break;
+      }
+
+      return layoutedNodes.map((node) => ({
+        ...node,
+        position: newPositions[node.id] || node.position,
+      }));
+    }
+
     return layoutedNodes;
-  }, [currentFlowchart, isDesignMode, nodePositions]);
+  }, [currentFlowchart, filteredNodes, isDesignMode, nodePositions, layoutMode, filteredConnections]);
 
   const initialEdges = useMemo(() => {
     if (!currentFlowchart) return [];
-    return layoutEdges(currentFlowchart.connections);
-  }, [currentFlowchart]);
+    return layoutEdges(filteredConnections);
+  }, [currentFlowchart, filteredConnections]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);

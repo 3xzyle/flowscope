@@ -3,11 +3,12 @@
 //! HTTP endpoints for the FlowScope frontend
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Query},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
+use serde::Deserialize;
 use tracing::{debug, error, info};
 
 use crate::AppState;
@@ -142,6 +143,199 @@ pub async fn get_container_detail(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({
                     "error": "Failed to get container",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// GET /api/container/:id/detail - Get detailed container info (env, volumes, health)
+pub async fn get_container_full_detail(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    debug!("Getting container detail: {}", id);
+
+    match state.docker.get_container_detail(&id).await {
+        Ok(Some(detail)) => {
+            info!("Found container detail: {}", detail.info.name);
+            (StatusCode::OK, Json(detail)).into_response()
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "Container not found",
+                "id": id
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            error!("Failed to get container detail '{}': {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to get container detail",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct LogsQuery {
+    #[serde(default = "default_tail")]
+    pub tail: usize,
+}
+
+fn default_tail() -> usize {
+    100
+}
+
+/// GET /api/container/:id/logs - Get container logs
+pub async fn get_container_logs(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<LogsQuery>,
+) -> impl IntoResponse {
+    debug!("Getting container logs: {} (tail: {})", id, query.tail);
+
+    match state.docker.get_container_logs(&id, query.tail).await {
+        Ok(Some(logs)) => {
+            info!("Got {} log lines for container: {}", logs.logs.len(), logs.container_name);
+            (StatusCode::OK, Json(logs)).into_response()
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "Container not found",
+                "id": id
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            error!("Failed to get logs for '{}': {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to get container logs",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// POST /api/container/:id/restart - Restart a container
+pub async fn restart_container(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    info!("Restarting container: {}", id);
+
+    match state.docker.restart_container(&id).await {
+        Ok(Some(result)) => {
+            if result.success {
+                info!("Restarted container: {}", result.container_name);
+            } else {
+                error!("Failed to restart: {}", result.message);
+            }
+            (if result.success { StatusCode::OK } else { StatusCode::INTERNAL_SERVER_ERROR }, Json(result)).into_response()
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "Container not found",
+                "id": id
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            error!("Failed to restart '{}': {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to restart container",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// POST /api/container/:id/stop - Stop a container
+pub async fn stop_container(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    info!("Stopping container: {}", id);
+
+    match state.docker.stop_container(&id).await {
+        Ok(Some(result)) => {
+            if result.success {
+                info!("Stopped container: {}", result.container_name);
+            } else {
+                error!("Failed to stop: {}", result.message);
+            }
+            (if result.success { StatusCode::OK } else { StatusCode::INTERNAL_SERVER_ERROR }, Json(result)).into_response()
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "Container not found",
+                "id": id
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            error!("Failed to stop '{}': {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to stop container",
+                    "details": e.to_string()
+                })),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// POST /api/container/:id/start - Start a container
+pub async fn start_container(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    info!("Starting container: {}", id);
+
+    match state.docker.start_container(&id).await {
+        Ok(Some(result)) => {
+            if result.success {
+                info!("Started container: {}", result.container_name);
+            } else {
+                error!("Failed to start: {}", result.message);
+            }
+            (if result.success { StatusCode::OK } else { StatusCode::INTERNAL_SERVER_ERROR }, Json(result)).into_response()
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "Container not found",
+                "id": id
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            error!("Failed to start '{}': {}", id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Failed to start container",
                     "details": e.to_string()
                 })),
             )

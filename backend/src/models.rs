@@ -216,3 +216,63 @@ pub struct NetworkInfo {
     pub driver: String,
     pub containers: Vec<String>,
 }
+
+// =============================================================================
+// CONTAINER DETAILS & ACTIONS
+// =============================================================================
+
+/// Detailed container information including environment and logs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerDetail {
+    #[serde(flatten)]
+    pub info: ContainerInfo,
+    pub environment: Vec<String>,
+    pub command: Option<String>,
+    pub entrypoint: Option<Vec<String>>,
+    pub working_dir: Option<String>,
+    pub volumes: Vec<VolumeMount>,
+    pub health_check: Option<HealthCheckConfig>,
+}
+
+/// Volume mount information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VolumeMount {
+    pub source: String,
+    pub destination: String,
+    pub mode: String,
+}
+
+/// Health check configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthCheckConfig {
+    pub test: Vec<String>,
+    pub interval_seconds: u64,
+    pub timeout_seconds: u64,
+    pub retries: u32,
+    pub start_period_seconds: u64,
+}
+
+/// Container logs response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerLogs {
+    pub container_id: String,
+    pub container_name: String,
+    pub logs: Vec<String>,
+    pub tail: usize,
+    pub since: Option<String>,
+}
+
+/// Container action result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionResult {
+    pub success: bool,
+    pub container_id: String,
+    pub container_name: String,
+    pub action: String,
+    pub message: String,
+}

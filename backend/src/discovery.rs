@@ -4,11 +4,12 @@
 //! network relationships, and generates flowchart data.
 
 use bollard::{
-    container::ListContainersOptions,
+    container::{ListContainersOptions, LogsOptions, RestartContainerOptions, StopContainerOptions, InspectContainerOptions},
     network::ListNetworksOptions,
     Docker,
 };
 use chrono::{TimeZone, Utc};
+use futures_util::StreamExt;
 use std::collections::HashMap;
 
 use crate::models::*;
@@ -540,5 +541,188 @@ impl DockerDiscovery {
         }
 
         None
+    }
+
+    /// Get detailed container information including environment, volumes, health check
+    pub async fn get_container_detail(&self, id: &str) -> Result<Option<ContainerDetail>, bollard::errors::Error> {
+        // First get basic container info
+        let container_info = match self.get_container(id).await? {
+            Some(info) => info,
+            None => return Ok(None),
+        };
+
+        // Inspect for detailed information
+        let inspect = self.docker.inspect_container(&container_info.id, None::<InspectContainerOptions>).await?;
+        
+        // Extract environment variables
+        let environment = inspect.config
+            .as_ref()
+            .and_then(|c| c.env.clone())
+            .unwrap_or_default();
+
+        // Extract command
+        let command = inspect.config
+            .as_ref()
+            .and_then(|c| c.cmd.clone())
+            .map(|cmds| cmds.join(" "));
+
+        // Extract entrypoint
+        let entrypoint = inspect.config
+            .as_ref()
+            .and_then(|c| c.entrypoint.clone());
+
+        // Extract working directory
+        let working_dir = inspect.config
+            .as_ref()
+            .and_then(|c| c.working_dir.clone());
+
+        // Extract volumes/mounts
+        let volumes: Vec<VolumeMount> = inspect.mounts
+            .unwrap_or_default()
+            .into_iter()
+            .map(|m| VolumeMount {
+                source: m.source.unwrap_or_default(),
+                destination: m.destination.unwrap_or_default(),
+                mode: m.mode.unwrap_or_else(|| "rw".to_string()),
+            })
+            .collect();
+
+        // Extract health check config
+        let health_check = inspect.config
+            .as_ref()
+            .and_then(|c| c.healthcheck.clone())
+            .map(|hc| HealthCheckConfig {
+                test: hc.test.unwrap_or_default(),
+                interval_seconds: (hc.interval.unwrap_or(0) / 1_000_000_000) as u64,
+                timeout_seconds: (hc.timeout.unwrap_or(0) / 1_000_000_000) as u64,
+                retries: hc.retries.unwrap_or(0) as u32,
+                start_period_seconds: (hc.start_period.unwrap_or(0) / 1_000_000_000) as u64,
+            });
+
+        Ok(Some(ContainerDetail {
+            info: container_info,
+            environment,
+            command,
+            entrypoint,
+            working_dir,
+            volumes,
+            health_check,
+        }))
+    }
+
+    /// Get container logs
+    pub async fn get_container_logs(&self, id: &str, tail: usize) -> Result<Option<ContainerLogs>, bollard::errors::Error> {
+        // First verify container exists
+        let container_info = match self.get_container(id).await? {
+            Some(info) => info,
+            None => return Ok(None),
+        };
+
+        let options = LogsOptions::<String> {
+            stdout: true,
+            stderr: true,
+            tail: tail.to_string(),
+            ..Default::default()
+        };
+
+        let mut stream = self.docker.logs(&container_info.id, Some(options));
+        let mut logs = Vec::new();
+
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(output) => {
+                    let line = output.to_string();
+                    logs.push(line);
+                }
+                Err(_) => break,
+            }
+        }
+
+        Ok(Some(ContainerLogs {
+            container_id: container_info.id,
+            container_name: container_info.name,
+            logs,
+            tail,
+            since: None,
+        }))
+    }
+
+    /// Restart a container
+    pub async fn restart_container(&self, id: &str) -> Result<Option<ActionResult>, bollard::errors::Error> {
+        let container_info = match self.get_container(id).await? {
+            Some(info) => info,
+            None => return Ok(None),
+        };
+
+        let options = RestartContainerOptions { t: 10 };
+        
+        match self.docker.restart_container(&container_info.id, Some(options)).await {
+            Ok(_) => Ok(Some(ActionResult {
+                success: true,
+                container_id: container_info.id,
+                container_name: container_info.name,
+                action: "restart".to_string(),
+                message: "Container restart initiated".to_string(),
+            })),
+            Err(e) => Ok(Some(ActionResult {
+                success: false,
+                container_id: container_info.id,
+                container_name: container_info.name,
+                action: "restart".to_string(),
+                message: format!("Failed to restart: {}", e),
+            })),
+        }
+    }
+
+    /// Stop a container
+    pub async fn stop_container(&self, id: &str) -> Result<Option<ActionResult>, bollard::errors::Error> {
+        let container_info = match self.get_container(id).await? {
+            Some(info) => info,
+            None => return Ok(None),
+        };
+
+        let options = StopContainerOptions { t: 10 };
+        
+        match self.docker.stop_container(&container_info.id, Some(options)).await {
+            Ok(_) => Ok(Some(ActionResult {
+                success: true,
+                container_id: container_info.id,
+                container_name: container_info.name,
+                action: "stop".to_string(),
+                message: "Container stopped".to_string(),
+            })),
+            Err(e) => Ok(Some(ActionResult {
+                success: false,
+                container_id: container_info.id,
+                container_name: container_info.name,
+                action: "stop".to_string(),
+                message: format!("Failed to stop: {}", e),
+            })),
+        }
+    }
+
+    /// Start a container
+    pub async fn start_container(&self, id: &str) -> Result<Option<ActionResult>, bollard::errors::Error> {
+        let container_info = match self.get_container(id).await? {
+            Some(info) => info,
+            None => return Ok(None),
+        };
+
+        match self.docker.start_container::<String>(&container_info.id, None).await {
+            Ok(_) => Ok(Some(ActionResult {
+                success: true,
+                container_id: container_info.id,
+                container_name: container_info.name,
+                action: "start".to_string(),
+                message: "Container started".to_string(),
+            })),
+            Err(e) => Ok(Some(ActionResult {
+                success: false,
+                container_id: container_info.id,
+                container_name: container_info.name,
+                action: "start".to_string(),
+                message: format!("Failed to start: {}", e),
+            })),
+        }
     }
 }

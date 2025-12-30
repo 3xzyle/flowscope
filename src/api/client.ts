@@ -40,6 +40,45 @@ export interface PortMapping {
   protocol: string;
 }
 
+export interface VolumeMount {
+  source: string;
+  destination: string;
+  mode: string;
+}
+
+export interface HealthCheckConfig {
+  test: string[];
+  intervalSeconds: number;
+  timeoutSeconds: number;
+  retries: number;
+  startPeriodSeconds: number;
+}
+
+export interface ContainerDetail extends ContainerInfo {
+  environment: string[];
+  command: string | null;
+  entrypoint: string[] | null;
+  workingDir: string | null;
+  volumes: VolumeMount[];
+  healthCheck: HealthCheckConfig | null;
+}
+
+export interface ContainerLogs {
+  containerId: string;
+  containerName: string;
+  logs: string[];
+  tail: number;
+  since: string | null;
+}
+
+export interface ActionResult {
+  success: boolean;
+  containerId: string;
+  containerName: string;
+  action: string;
+  message: string;
+}
+
 export interface SystemTopology {
   totalContainers: number;
   runningContainers: number;
@@ -135,6 +174,69 @@ class FlowScopeAPI {
 
   async getContainer(id: string): Promise<ContainerInfo> {
     return this.fetch<ContainerInfo>(`/container/${encodeURIComponent(id)}`);
+  }
+
+  async getContainerDetail(id: string): Promise<ContainerDetail> {
+    return this.fetch<ContainerDetail>(
+      `/container/${encodeURIComponent(id)}/detail`
+    );
+  }
+
+  async getContainerLogs(
+    id: string,
+    tail: number = 100
+  ): Promise<ContainerLogs> {
+    return this.fetch<ContainerLogs>(
+      `/container/${encodeURIComponent(id)}/logs?tail=${tail}`
+    );
+  }
+
+  async restartContainer(id: string): Promise<ActionResult> {
+    const response = await fetch(
+      `${this.baseUrl}/container/${encodeURIComponent(id)}/restart`,
+      {
+        method: "POST",
+      }
+    );
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async stopContainer(id: string): Promise<ActionResult> {
+    const response = await fetch(
+      `${this.baseUrl}/container/${encodeURIComponent(id)}/stop`,
+      {
+        method: "POST",
+      }
+    );
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async startContainer(id: string): Promise<ActionResult> {
+    const response = await fetch(
+      `${this.baseUrl}/container/${encodeURIComponent(id)}/start`,
+      {
+        method: "POST",
+      }
+    );
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+    return response.json();
   }
 
   async checkHealth(): Promise<boolean> {

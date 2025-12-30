@@ -1,15 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import FlowCanvas from "./components/FlowCanvas";
 import Header from "./components/Header";
 import Breadcrumbs from "./components/Breadcrumbs";
-import ServicePanel from "./components/ServicePanel";
+import ContainerDetailPanel from "./components/ContainerDetailPanel";
 import ExportPanel from "./components/ExportPanel";
 import { useFlowStore } from "./store/flowStore";
 import { useLiveData } from "./hooks/useLiveData";
+import {
+  applyGridLayout,
+  applyHierarchicalLayout,
+  applyForceLayout,
+} from "./components/LayoutSelector";
 
 function App() {
-  const { selectedNode } = useFlowStore();
+  const { selectedNode, currentFlowchart, layoutMode, setNodePositions } = useFlowStore();
   const [showExport, setShowExport] = useState(false);
   const { isConnected, topology, refetch, isLoading } = useLiveData();
 
@@ -22,6 +27,41 @@ function App() {
     }
   }, [isConnected, topology]);
 
+  // Auto-layout handler
+  const handleAutoLayout = useCallback(() => {
+    if (!currentFlowchart) return;
+
+    const nodes = currentFlowchart.nodes.map((n) => ({
+      id: n.id,
+      position: { x: 0, y: 0 },
+    }));
+
+    const connections = currentFlowchart.connections.map((c) => ({
+      source: c.source,
+      target: c.target,
+    }));
+
+    let positions: Record<string, { x: number; y: number }>;
+
+    switch (layoutMode) {
+      case "grid":
+        positions = applyGridLayout(nodes);
+        break;
+      case "hierarchical":
+        positions = applyHierarchicalLayout(nodes, connections);
+        break;
+      case "force":
+        positions = applyForceLayout(nodes, connections);
+        break;
+      default:
+        positions = {};
+    }
+
+    if (Object.keys(positions).length > 0) {
+      setNodePositions(positions);
+    }
+  }, [currentFlowchart, layoutMode, setNodePositions]);
+
   return (
     <ReactFlowProvider>
       <div className="h-screen w-screen flex flex-col bg-flow-bg">
@@ -30,6 +70,7 @@ function App() {
           isConnected={isConnected}
           topology={topology}
           onRefresh={refetch}
+          onAutoLayout={handleAutoLayout}
         />
         <Breadcrumbs />
         <div className="flex-1 flex relative">
@@ -44,7 +85,7 @@ function App() {
             </div>
           )}
           <FlowCanvas />
-          {selectedNode && <ServicePanel />}
+          {selectedNode && <ContainerDetailPanel />}
           <ExportPanel
             isOpen={showExport}
             onClose={() => setShowExport(false)}

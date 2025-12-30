@@ -4,6 +4,7 @@ import {
   type ServiceFlowchart,
   type ServiceNode,
 } from "../data/mockData";
+import type { LayoutMode } from "../components/LayoutSelector";
 
 interface NavigationItem {
   id: string;
@@ -41,6 +42,14 @@ interface FlowState {
   // Node positions (for design mode persistence)
   nodePositions: Record<string, { x: number; y: number }>;
 
+  // Search & Filter
+  searchQuery: string;
+  statusFilter: string | null;
+  categoryFilter: string | null;
+
+  // Layout mode
+  layoutMode: LayoutMode;
+
   // Actions
   navigateToFlowchart: (id: string) => void;
   navigateToFlowchartAsync: (id: string) => Promise<void>;
@@ -51,9 +60,14 @@ interface FlowState {
   setLiveMode: (enabled: boolean) => void;
   setDesignMode: (enabled: boolean) => void;
   setNodePosition: (nodeId: string, position: { x: number; y: number }) => void;
+  setNodePositions: (positions: Record<string, { x: number; y: number }>) => void;
   setFetchCallback: (
     callback: ((id: string) => Promise<ServiceFlowchart | null>) | null
   ) => void;
+  setSearchQuery: (query: string) => void;
+  setStatusFilter: (status: string | null) => void;
+  setCategoryFilter: (category: string | null) => void;
+  setLayoutMode: (mode: LayoutMode) => void;
 }
 
 // Get flowchart from cache (live first, then mock)
@@ -76,6 +90,10 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   isDesignMode: false,
   isNavigating: false,
   nodePositions: {},
+  searchQuery: "",
+  statusFilter: null,
+  categoryFilter: null,
+  layoutMode: "default" as LayoutMode,
 
   navigateToFlowchart: (id: string) => {
     const { isLiveMode } = get();
@@ -207,7 +225,27 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     }));
   },
 
+  setNodePositions: (positions: Record<string, { x: number; y: number }>) => {
+    set({ nodePositions: positions });
+  },
+
   setFetchCallback: (callback) => {
     fetchLiveFlowchartCallback = callback;
+  },
+
+  setSearchQuery: (query: string) => {
+    set({ searchQuery: query });
+  },
+
+  setStatusFilter: (status: string | null) => {
+    set({ statusFilter: status });
+  },
+
+  setCategoryFilter: (category: string | null) => {
+    set({ categoryFilter: category });
+  },
+
+  setLayoutMode: (mode: LayoutMode) => {
+    set({ layoutMode: mode });
   },
 }));

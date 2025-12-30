@@ -41,6 +41,21 @@ const statusColors: Record<
     text: "text-flow-success",
     border: "border-flow-success/30",
   },
+  healthy: {
+    bg: "bg-green-500",
+    text: "text-green-400",
+    border: "border-green-500/30",
+  },
+  unhealthy: {
+    bg: "bg-red-500",
+    text: "text-red-400",
+    border: "border-red-500/30",
+  },
+  exited: {
+    bg: "bg-gray-500",
+    text: "text-gray-400",
+    border: "border-gray-500/30",
+  },
   stopped: {
     bg: "bg-flow-muted",
     text: "text-flow-muted",
@@ -55,6 +70,26 @@ const statusColors: Record<
     bg: "bg-flow-danger",
     text: "text-flow-danger",
     border: "border-flow-danger/30",
+  },
+  created: {
+    bg: "bg-blue-500",
+    text: "text-blue-400",
+    border: "border-blue-500/30",
+  },
+  paused: {
+    bg: "bg-yellow-500",
+    text: "text-yellow-400",
+    border: "border-yellow-500/30",
+  },
+  restarting: {
+    bg: "bg-orange-500",
+    text: "text-orange-400",
+    border: "border-orange-500/30",
+  },
+  dead: {
+    bg: "bg-red-700",
+    text: "text-red-500",
+    border: "border-red-700/30",
   },
 };
 

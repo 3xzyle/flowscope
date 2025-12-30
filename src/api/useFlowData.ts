@@ -1,8 +1,8 @@
 // React hook for FlowScope API connection status
 // Handles health checks and provides connection state
 
-import { useCallback, useEffect, useState } from 'react';
-import { api, SystemTopology } from './client';
+import { useCallback, useEffect, useState } from "react";
+import { api, SystemTopology } from "./client";
 
 interface UseFlowDataResult {
   isLoading: boolean;
@@ -30,11 +30,36 @@ const mockTopology: SystemTopology = {
     other: 9,
   },
   flowcharts: [
-    { id: 'val-ecosystem', name: 'VAL Ecosystem', nodeCount: 12, category: 'val' },
-    { id: 'valina-backend', name: 'Valina Backend Services', nodeCount: 82, category: 'valina' },
-    { id: 'aiml-services', name: 'AI/ML Services', nodeCount: 48, category: 'aiml' },
-    { id: 'monitoring', name: 'Monitoring & Observability', nodeCount: 8, category: 'monitoring' },
-    { id: 'infrastructure', name: 'Infrastructure', nodeCount: 10, category: 'infrastructure' },
+    {
+      id: "val-ecosystem",
+      name: "VAL Ecosystem",
+      nodeCount: 12,
+      category: "val",
+    },
+    {
+      id: "valina-backend",
+      name: "Valina Backend Services",
+      nodeCount: 82,
+      category: "valina",
+    },
+    {
+      id: "aiml-services",
+      name: "AI/ML Services",
+      nodeCount: 48,
+      category: "aiml",
+    },
+    {
+      id: "monitoring",
+      name: "Monitoring & Observability",
+      nodeCount: 8,
+      category: "monitoring",
+    },
+    {
+      id: "infrastructure",
+      name: "Infrastructure",
+      nodeCount: 10,
+      category: "infrastructure",
+    },
   ],
   generatedAt: new Date().toISOString(),
 };
@@ -48,12 +73,12 @@ export function useFlowData(): UseFlowDataResult {
   const refetch = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Check if backend is available
       const connected = await api.checkHealth();
       setIsConnected(connected);
-      
+
       if (connected) {
         // Load real topology from API
         const data = await api.getTopology();
@@ -63,7 +88,8 @@ export function useFlowData(): UseFlowDataResult {
         setTopology(mockTopology);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch data';
+      const message =
+        err instanceof Error ? err.message : "Failed to fetch data";
       setError(message);
       setTopology(mockTopology);
       setIsConnected(false);

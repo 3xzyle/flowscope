@@ -1,15 +1,32 @@
 // FlowScope API Client
 // Connects to the Rust backend for real Docker container data
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 export interface ContainerInfo {
   id: string;
   name: string;
   image: string;
-  status: 'running' | 'healthy' | 'unhealthy' | 'exited' | 'created' | 'paused' | 'restarting' | 'dead';
+  status:
+    | "running"
+    | "healthy"
+    | "unhealthy"
+    | "exited"
+    | "created"
+    | "paused"
+    | "restarting"
+    | "dead";
   health: string | null;
-  category: 'aiml' | 'application' | 'infrastructure' | 'frontend' | 'monitoring' | 'game' | 'val' | 'blockchain' | 'other';
+  category:
+    | "aiml"
+    | "application"
+    | "infrastructure"
+    | "frontend"
+    | "monitoring"
+    | "game"
+    | "val"
+    | "blockchain"
+    | "other";
   ports: PortMapping[];
   networks: string[];
   created: string;
@@ -54,7 +71,7 @@ export interface FlowchartNode {
   name: string;
   description: string;
   status: string;
-  nodeType: 'service' | 'process' | 'decision' | 'group';
+  nodeType: "service" | "process" | "decision" | "group";
   category: string;
   port: number | null;
   childFlowchart: string | null;
@@ -72,7 +89,7 @@ export interface FlowchartConnection {
   source: string;
   target: string;
   label: string | null;
-  connectionType: 'primary' | 'secondary' | 'data' | 'control' | 'network';
+  connectionType: "primary" | "secondary" | "data" | "control" | "network";
 }
 
 export interface NetworkInfo {
@@ -92,22 +109,24 @@ class FlowScopeAPI {
   private async fetch<T>(endpoint: string): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`);
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
       throw new Error(error.error || `HTTP ${response.status}`);
     }
     return response.json();
   }
 
   async getTopology(): Promise<SystemTopology> {
-    return this.fetch<SystemTopology>('/topology');
+    return this.fetch<SystemTopology>("/topology");
   }
 
   async getContainers(): Promise<ContainerInfo[]> {
-    return this.fetch<ContainerInfo[]>('/containers');
+    return this.fetch<ContainerInfo[]>("/containers");
   }
 
   async getNetworks(): Promise<NetworkInfo[]> {
-    return this.fetch<NetworkInfo[]>('/networks');
+    return this.fetch<NetworkInfo[]>("/networks");
   }
 
   async getFlowchart(id: string): Promise<Flowchart> {
@@ -120,7 +139,9 @@ class FlowScopeAPI {
 
   async checkHealth(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl.replace('/api', '')}/health`);
+      const response = await fetch(
+        `${this.baseUrl.replace("/api", "")}/health`
+      );
       return response.ok;
     } catch {
       return false;

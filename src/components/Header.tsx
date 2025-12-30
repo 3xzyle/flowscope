@@ -1,11 +1,32 @@
-import { Compass, Layers, Zap, Download, Workflow } from "lucide-react";
+import {
+  Compass,
+  Layers,
+  Zap,
+  Download,
+  Workflow,
+  RefreshCw,
+} from "lucide-react";
 import { useFlowStore } from "../store/flowStore";
+import ConnectionStatus from "./ConnectionStatus";
 
 interface HeaderProps {
   onExportClick: () => void;
+  isConnected?: boolean;
+  topology?: {
+    totalContainers: number;
+    runningContainers: number;
+    healthyContainers: number;
+    unhealthyContainers: number;
+  } | null;
+  onRefresh?: () => void;
 }
 
-export default function Header({ onExportClick }: HeaderProps) {
+export default function Header({
+  onExportClick,
+  isConnected,
+  topology,
+  onRefresh,
+}: HeaderProps) {
   const { currentFlowchart, goHome, navigateToFlowchart } = useFlowStore();
 
   return (
@@ -40,15 +61,46 @@ export default function Header({ onExportClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="flex items-center gap-1.5 text-flow-success">
-            <span className="w-2 h-2 rounded-full bg-flow-success animate-pulse" />
-            6 Running
-          </span>
-          <span className="flex items-center gap-1.5 text-flow-warning">
-            <span className="w-2 h-2 rounded-full bg-flow-warning" />1 Warning
-          </span>
-        </div>
+        <ConnectionStatus />
+
+        {topology ? (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="flex items-center gap-1.5 text-flow-success">
+              <span className="w-2 h-2 rounded-full bg-flow-success animate-pulse" />
+              {topology.runningContainers} Running
+            </span>
+            <span className="flex items-center gap-1.5 text-green-400">
+              <span className="w-2 h-2 rounded-full bg-green-400" />
+              {topology.healthyContainers} Healthy
+            </span>
+            {topology.unhealthyContainers > 0 && (
+              <span className="flex items-center gap-1.5 text-flow-warning">
+                <span className="w-2 h-2 rounded-full bg-flow-warning" />
+                {topology.unhealthyContainers} Unhealthy
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="flex items-center gap-1.5 text-flow-success">
+              <span className="w-2 h-2 rounded-full bg-flow-success animate-pulse" />
+              6 Running
+            </span>
+            <span className="flex items-center gap-1.5 text-flow-warning">
+              <span className="w-2 h-2 rounded-full bg-flow-warning" />1 Warning
+            </span>
+          </div>
+        )}
+
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="p-1.5 text-flow-muted hover:text-white hover:bg-flow-bg rounded transition-colors"
+            title="Refresh data"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        )}
 
         <button
           onClick={onExportClick}

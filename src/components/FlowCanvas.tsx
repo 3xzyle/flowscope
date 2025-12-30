@@ -212,7 +212,7 @@ export default function FlowCanvas() {
   // Filter nodes based on search and filters
   const filteredNodes = useMemo(() => {
     if (!currentFlowchart) return [];
-    
+
     return currentFlowchart.nodes.filter((node) => {
       // Search filter
       if (searchQuery) {
@@ -240,10 +240,11 @@ export default function FlowCanvas() {
   // Filter connections to only show ones between visible nodes
   const filteredConnections = useMemo(() => {
     if (!currentFlowchart) return [];
-    
+
     const visibleNodeIds = new Set(filteredNodes.map((n) => n.id));
     return currentFlowchart.connections.filter(
-      (conn) => visibleNodeIds.has(conn.source) && visibleNodeIds.has(conn.target)
+      (conn) =>
+        visibleNodeIds.has(conn.source) && visibleNodeIds.has(conn.target)
     );
   }, [currentFlowchart, filteredNodes]);
 
@@ -265,13 +266,16 @@ export default function FlowCanvas() {
     // Apply layout mode transformations
     if (layoutMode !== "default" && layoutedNodes.length > 0) {
       let newPositions: Record<string, { x: number; y: number }> = {};
-      
+
       switch (layoutMode) {
         case "grid":
           newPositions = applyGridLayout(layoutedNodes);
           break;
         case "hierarchical":
-          newPositions = applyHierarchicalLayout(layoutedNodes, filteredConnections);
+          newPositions = applyHierarchicalLayout(
+            layoutedNodes,
+            filteredConnections
+          );
           break;
         case "force":
           newPositions = applyForceLayout(layoutedNodes, filteredConnections);
@@ -285,7 +289,14 @@ export default function FlowCanvas() {
     }
 
     return layoutedNodes;
-  }, [currentFlowchart, filteredNodes, isDesignMode, nodePositions, layoutMode, filteredConnections]);
+  }, [
+    currentFlowchart,
+    filteredNodes,
+    isDesignMode,
+    nodePositions,
+    layoutMode,
+    filteredConnections,
+  ]);
 
   const initialEdges = useMemo(() => {
     if (!currentFlowchart) return [];

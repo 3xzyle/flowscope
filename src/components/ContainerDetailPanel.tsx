@@ -21,14 +21,34 @@ import {
 } from "lucide-react";
 import { useFlowStore } from "../store/flowStore";
 import { getServiceTypeIcon, getStatusColor } from "./ServiceNode";
-import {
-  api,
-  ContainerDetail,
-  ContainerLogs,
-  ActionResult,
-} from "../api";
+import { api, ContainerDetail, ContainerLogs, ActionResult } from "../api";
 
 type TabType = "overview" | "logs" | "environment" | "volumes" | "health";
+
+// Check if a node is an actual container vs a category group
+function isActualContainer(
+  node: { id: string; nodeType?: string } | null
+): boolean {
+  if (!node) return false;
+  // Group nodes are category overviews, not real containers
+  if (node.nodeType === "group") return false;
+  // Category overview IDs end with "-overview" or are just category names
+  if (node.id.endsWith("-overview")) return false;
+  // Category IDs without hyphens followed by numbers are likely not containers
+  const categoryNames = [
+    "aiml",
+    "application",
+    "infrastructure",
+    "frontend",
+    "monitoring",
+    "game",
+    "val",
+    "blockchain",
+    "other",
+  ];
+  if (categoryNames.includes(node.id.toLowerCase())) return false;
+  return true;
+}
 
 export default function ContainerDetailPanel() {
   const { selectedNode, selectNode, navigateToFlowchartAsync, isLiveMode } =
@@ -44,18 +64,22 @@ export default function ContainerDetailPanel() {
   const [error, setError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<ActionResult | null>(null);
 
-  // Fetch container details when node selected (live mode only)
+  // Check if this is an actual container (not a category group)
+  const isContainer = isActualContainer(selectedNode);
+
+  // Fetch container details when node selected (live mode only, actual containers only)
   useEffect(() => {
-    if (selectedNode && isLiveMode) {
+    if (selectedNode && isLiveMode && isContainer) {
       fetchContainerDetail();
     } else {
       setContainerDetail(null);
       setLogs(null);
+      setError(null);
     }
-  }, [selectedNode?.id, isLiveMode]);
+  }, [selectedNode?.id, isLiveMode, isContainer]);
 
   const fetchContainerDetail = async () => {
-    if (!selectedNode) return;
+    if (!selectedNode || !isContainer) return;
 
     setLoading(true);
     setError(null);
@@ -70,7 +94,7 @@ export default function ContainerDetailPanel() {
   };
 
   const fetchLogs = useCallback(async () => {
-    if (!selectedNode) return;
+    if (!selectedNode || !isContainer) return;
 
     setLogsLoading(true);
     try {
@@ -81,17 +105,23 @@ export default function ContainerDetailPanel() {
     } finally {
       setLogsLoading(false);
     }
-  }, [selectedNode]);
+  }, [selectedNode, isContainer]);
 
   // Fetch logs when switching to logs tab
   useEffect(() => {
-    if (activeTab === "logs" && isLiveMode && selectedNode && !logs) {
+    if (
+      activeTab === "logs" &&
+      isLiveMode &&
+      selectedNode &&
+      isContainer &&
+      !logs
+    ) {
       fetchLogs();
     }
-  }, [activeTab, isLiveMode, selectedNode, logs, fetchLogs]);
+  }, [activeTab, isLiveMode, selectedNode, isContainer, logs, fetchLogs]);
 
   const handleAction = async (action: "restart" | "stop" | "start") => {
-    if (!selectedNode) return;
+    if (!selectedNode || !isContainer) return;
 
     setActionLoading(action);
     setActionResult(null);
@@ -131,13 +161,15 @@ export default function ContainerDetailPanel() {
   const StatusIcon = getServiceTypeIcon(selectedNode.type);
   const statusColor = getStatusColor(selectedNode.status);
 
-  const tabs: { id: TabType; label: string; icon: React.ElementType }[] = [
-    { id: "overview", label: "Overview", icon: Activity },
-    { id: "logs", label: "Logs", icon: Terminal },
-    { id: "environment", label: "Env", icon: Key },
-    { id: "volumes", label: "Volumes", icon: Folder },
-    { id: "health", label: "Health", icon: Heart },
-  ];
+  const tabs: { id: TabType; label: string; icon: React.ElementType }[] = isContainer
+    ? [
+        { id: "overview", label: "Overview", icon: Activity },
+        { id: "logs", label: "Logs", icon: Terminal },
+        { id: "environment", label: "Env", icon: Key },
+        { id: "volumes", label: "Volumes", icon: Folder },
+        { id: "health", label: "Health", icon: Heart },
+      ]
+    : [{ id: "overview", label: "Overview", icon: Activity }];
 
   const isRunning =
     selectedNode.status === "running" || selectedNode.status === "healthy";
@@ -174,8 +206,8 @@ export default function ContainerDetailPanel() {
           </button>
         </div>
 
-        {/* Container Actions */}
-        {isLiveMode && (
+        {/* Container Actions - only show for actual containers */}
+        {isLiveMode && isContainer && (
           <div className="flex gap-2 mt-3">
             {isRunning && (
               <>

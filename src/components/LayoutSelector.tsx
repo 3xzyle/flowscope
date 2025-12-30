@@ -9,30 +9,35 @@ interface LayoutSelectorProps {
   onAutoLayout: () => void;
 }
 
-const LAYOUT_OPTIONS: { mode: LayoutMode; label: string; icon: React.ElementType; description: string }[] = [
-  { 
-    mode: "default", 
-    label: "Default", 
+const LAYOUT_OPTIONS: {
+  mode: LayoutMode;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+}[] = [
+  {
+    mode: "default",
+    label: "Default",
     icon: Layers,
-    description: "Preset positions"
+    description: "Preset positions",
   },
-  { 
-    mode: "grid", 
-    label: "Grid", 
+  {
+    mode: "grid",
+    label: "Grid",
     icon: LayoutGrid,
-    description: "Aligned grid layout"
+    description: "Aligned grid layout",
   },
-  { 
-    mode: "hierarchical", 
-    label: "Hierarchy", 
+  {
+    mode: "hierarchical",
+    label: "Hierarchy",
     icon: GitBranch,
-    description: "Top-down tree"
+    description: "Top-down tree",
   },
-  { 
-    mode: "force", 
-    label: "Force", 
+  {
+    mode: "force",
+    label: "Force",
     icon: Zap,
-    description: "Physics-based"
+    description: "Physics-based",
   },
 ];
 
@@ -43,7 +48,9 @@ export default function LayoutSelector({
 }: LayoutSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const currentOption = LAYOUT_OPTIONS.find((opt) => opt.mode === currentLayout) || LAYOUT_OPTIONS[0];
+  const currentOption =
+    LAYOUT_OPTIONS.find((opt) => opt.mode === currentLayout) ||
+    LAYOUT_OPTIONS[0];
   const CurrentIcon = currentOption.icon;
 
   return (
@@ -54,17 +61,21 @@ export default function LayoutSelector({
       >
         <CurrentIcon className="w-4 h-4 text-flow-accent" />
         <span>{currentOption.label}</span>
-        <ChevronDown className={`w-3 h-3 text-flow-muted transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-3 h-3 text-flow-muted transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-10" 
-            onClick={() => setIsOpen(false)} 
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
           />
-          
+
           {/* Dropdown */}
           <div className="absolute top-full left-0 mt-1 w-48 bg-flow-surface border border-flow-border rounded-lg shadow-xl z-20 overflow-hidden">
             {LAYOUT_OPTIONS.map((option) => (
@@ -83,11 +94,13 @@ export default function LayoutSelector({
                 <option.icon className="w-4 h-4 mt-0.5" />
                 <div>
                   <div className="text-sm font-medium">{option.label}</div>
-                  <div className="text-xs text-flow-muted">{option.description}</div>
+                  <div className="text-xs text-flow-muted">
+                    {option.description}
+                  </div>
                 </div>
               </button>
             ))}
-            
+
             {/* Auto Layout Button */}
             <div className="border-t border-flow-border p-2">
               <button
@@ -118,7 +131,7 @@ export function applyGridLayout(
   gapY: number = 50
 ): Record<string, { x: number; y: number }> {
   const positions: Record<string, { x: number; y: number }> = {};
-  
+
   nodes.forEach((node, index) => {
     const col = index % columns;
     const row = Math.floor(index / columns);
@@ -138,11 +151,11 @@ export function applyHierarchicalLayout(
   nodeSpacing: number = 200
 ): Record<string, { x: number; y: number }> {
   const positions: Record<string, { x: number; y: number }> = {};
-  
+
   // Find root nodes (nodes with no incoming connections)
   const targetNodes = new Set(connections.map((c) => c.target));
   const rootNodes = nodes.filter((n) => !targetNodes.has(n.id));
-  
+
   // Build adjacency list
   const children: Record<string, string[]> = {};
   connections.forEach((c) => {
@@ -230,7 +243,7 @@ export function applyForceLayout(
         const dx = positions[nodeB.id].x - positions[nodeA.id].x;
         const dy = positions[nodeB.id].y - positions[nodeA.id].y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        
+
         const force = repulsionStrength / (dist * dist);
         velocities[nodeA.id].x -= (dx / dist) * force;
         velocities[nodeA.id].y -= (dy / dist) * force;
@@ -245,7 +258,7 @@ export function applyForceLayout(
 
       const dx = posB.x - posA.x;
       const dy = posB.y - posA.y;
-      
+
       velocities[conn.source].x += dx * attractionStrength;
       velocities[conn.source].y += dy * attractionStrength;
       velocities[conn.target].x -= dx * attractionStrength;

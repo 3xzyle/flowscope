@@ -60,7 +60,9 @@ interface FlowState {
   setLiveMode: (enabled: boolean) => void;
   setDesignMode: (enabled: boolean) => void;
   setNodePosition: (nodeId: string, position: { x: number; y: number }) => void;
-  setNodePositions: (positions: Record<string, { x: number; y: number }>) => void;
+  setNodePositions: (
+    positions: Record<string, { x: number; y: number }>
+  ) => void;
   setFetchCallback: (
     callback: ((id: string) => Promise<ServiceFlowchart | null>) | null
   ) => void;

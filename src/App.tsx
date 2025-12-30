@@ -14,7 +14,8 @@ import {
 } from "./components/LayoutSelector";
 
 function App() {
-  const { selectedNode, currentFlowchart, layoutMode, setNodePositions } = useFlowStore();
+  const { selectedNode, currentFlowchart, layoutMode, setNodePositions } =
+    useFlowStore();
   const [showExport, setShowExport] = useState(false);
   const { isConnected, topology, refetch, isLoading } = useLiveData();
 

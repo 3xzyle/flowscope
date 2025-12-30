@@ -114,9 +114,7 @@ export default function SearchFilter({
           <select
             value={activeCategoryFilter || "all"}
             onChange={(e) =>
-              onCategoryFilter(
-                e.target.value === "all" ? null : e.target.value
-              )
+              onCategoryFilter(e.target.value === "all" ? null : e.target.value)
             }
             className="px-3 py-1.5 bg-flow-surface border border-flow-border rounded-lg text-sm text-white focus:outline-none focus:border-flow-accent transition-colors cursor-pointer"
           >

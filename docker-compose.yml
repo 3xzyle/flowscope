@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  flowscope-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flowscope-backend-prod
+    ports:
+      - "8850:8850"
+    volumes:
+      # Mount Docker socket for container discovery
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - RUST_LOG=info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8850/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - flowscope-network
+
+  flowscope-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: flowscope-frontend-prod
+    ports:
+      - "3150:80"
+    depends_on:
+      - flowscope-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - flowscope-network
+
+networks:
+  flowscope-network:
+    driver: bridge

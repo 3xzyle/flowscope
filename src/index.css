@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: #0f1419;
+  color: #e2e8f0;
+  overflow: hidden;
+}
+
+/* React Flow customizations */
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__controls {
+  background: #1a1f2e;
+  border: 1px solid #2d3748;
+  border-radius: 8px;
+}
+
+.react-flow__controls-button {
+  background: #1a1f2e;
+  border: none;
+  color: #e2e8f0;
+}
+
+.react-flow__controls-button:hover {
+  background: #2d3748;
+}
+
+.react-flow__minimap {
+  background: #1a1f2e;
+  border: 1px solid #2d3748;
+  border-radius: 8px;
+}
+
+.react-flow__background pattern circle {
+  fill: #2d3748;
+}
+
+/* Animated edge */
+.animated-edge {
+  stroke-dasharray: 5;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Smooth transitions */
+.transition-view {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

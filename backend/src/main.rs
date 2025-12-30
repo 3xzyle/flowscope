@@ -26,6 +26,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 mod discovery;
 mod models;
 mod routes;
+mod websocket;
 
 use discovery::DockerDiscovery;
 
@@ -65,6 +66,7 @@ async fn main() -> Result<()> {
         .route("/api/networks", get(routes::get_networks))
         .route("/api/flowchart/:id", get(routes::get_flowchart))
         .route("/api/container/:id", get(routes::get_container_detail))
+        .route("/ws", get(websocket::ws_handler))
         .with_state(state)
         .layer(
             CorsLayer::very_permissive()

@@ -189,12 +189,32 @@ function layoutEdges(connections: ServiceConnection[]): Edge[] {
 }
 
 export default function FlowCanvas() {
-  const { currentFlowchart, selectNode } = useFlowStore();
+  const {
+    currentFlowchart,
+    selectNode,
+    isDesignMode,
+    nodePositions,
+    setNodePosition,
+    isNavigating,
+  } = useFlowStore();
 
   const initialNodes = useMemo(() => {
     if (!currentFlowchart) return [];
-    return layoutNodes(currentFlowchart.nodes);
-  }, [currentFlowchart]);
+    const layoutedNodes = layoutNodes(currentFlowchart.nodes);
+
+    // Apply saved positions in design mode
+    if (isDesignMode) {
+      return layoutedNodes.map((node) => {
+        const savedPos = nodePositions[node.id];
+        if (savedPos) {
+          return { ...node, position: savedPos };
+        }
+        return node;
+      });
+    }
+
+    return layoutedNodes;
+  }, [currentFlowchart, isDesignMode, nodePositions]);
 
   const initialEdges = useMemo(() => {
     if (!currentFlowchart) return [];
@@ -210,21 +230,54 @@ export default function FlowCanvas() {
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
+  // Handle node drag end in design mode
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (isDesignMode) {
+        setNodePosition(node.id, node.position);
+      }
+    },
+    [isDesignMode, setNodePosition]
+  );
+
   // Handle background click to deselect
   const onPaneClick = useCallback(() => {
     selectNode(null);
   }, [selectNode]);
 
   return (
-    <div className="flex-1 transition-view">
+    <div className="flex-1 transition-view relative">
+      {/* Navigation loading indicator */}
+      {isNavigating && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-flow-bg/50 backdrop-blur-sm">
+          <div className="flex items-center gap-3 px-4 py-3 bg-flow-surface rounded-lg border border-flow-border">
+            <div className="w-5 h-5 border-2 border-flow-accent border-t-transparent rounded-full animate-spin" />
+            <span className="text-flow-text">Loading flowchart...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Design mode indicator */}
+      {isDesignMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 bg-flow-accent/20 border border-flow-accent/40 rounded-full">
+          <span className="text-xs font-medium text-flow-accent">
+            Design Mode - Drag nodes to reposition
+          </span>
+        </div>
+      )}
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeDragStop={onNodeDragStop}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        nodesDraggable={isDesignMode}
+        nodesConnectable={isDesignMode}
+        elementsSelectable={true}
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{ padding: 0.2 }}

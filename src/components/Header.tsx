@@ -5,6 +5,7 @@ import {
   Download,
   Workflow,
   RefreshCw,
+  Move,
 } from "lucide-react";
 import { useFlowStore } from "../store/flowStore";
 import ConnectionStatus from "./ConnectionStatus";
@@ -27,7 +28,13 @@ export default function Header({
   topology,
   onRefresh,
 }: HeaderProps) {
-  const { currentFlowchart, goHome, navigateToFlowchart } = useFlowStore();
+  const {
+    currentFlowchart,
+    goHome,
+    navigateToFlowchart,
+    isDesignMode,
+    setDesignMode,
+  } = useFlowStore();
 
   return (
     <header className="h-14 bg-flow-surface border-b border-flow-border flex items-center justify-between px-4">
@@ -112,7 +119,24 @@ export default function Header({
 
         <button className="flex items-center gap-1.5 px-3 py-1.5 bg-flow-accent/10 text-flow-accent rounded-lg text-sm hover:bg-flow-accent/20 transition-colors">
           <Zap className="w-4 h-4" />
-          <span>Design Mode</span>
+          <span>Quick Actions</span>
+        </button>
+
+        <button
+          onClick={() => setDesignMode(!isDesignMode)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+            isDesignMode
+              ? "bg-flow-accent text-white"
+              : "bg-flow-bg hover:bg-flow-border text-flow-muted hover:text-white"
+          }`}
+          title={
+            isDesignMode
+              ? "Exit design mode"
+              : "Enter design mode to drag nodes"
+          }
+        >
+          <Move className="w-4 h-4" />
+          <span>{isDesignMode ? "Exit Design" : "Design Mode"}</span>
         </button>
       </div>
     </header>

@@ -66,8 +66,16 @@ interface ServiceNodeData extends ServiceNodeType {
   label: string;
 }
 
-function ServiceNode({ data, selected }: NodeProps<ServiceNodeData>) {
-  const { selectNode, navigateToFlowchart } = useFlowStore();
+type ServiceNodeProps = NodeProps & { data: ServiceNodeData };
+
+function ServiceNode({ data, selected }: ServiceNodeProps) {
+  const {
+    selectNode,
+    navigateToFlowchart,
+    navigateToFlowchartAsync,
+    isLiveMode,
+    isNavigating,
+  } = useFlowStore();
 
   const Icon = serviceTypeIcons[data.type] || Cog;
   const colors = statusColors[data.status] || statusColors.running;
@@ -78,8 +86,13 @@ function ServiceNode({ data, selected }: NodeProps<ServiceNodeData>) {
   };
 
   const handleDoubleClick = () => {
-    if (hasDeeper) {
-      navigateToFlowchart(data.linkedFlowchart!);
+    if (hasDeeper && !isNavigating) {
+      // Use async navigation in live mode to fetch from API if needed
+      if (isLiveMode) {
+        navigateToFlowchartAsync(data.linkedFlowchart!);
+      } else {
+        navigateToFlowchart(data.linkedFlowchart!);
+      }
     }
   };
 

@@ -164,7 +164,7 @@ export function useLiveData(): UseLiveDataResult {
   const [isConnected, setIsConnected] = useState(false);
   const [topology, setTopology] = useState<SystemTopology | null>(null);
 
-  const { setLiveFlowchart, setLiveMode } = useFlowStore();
+  const { setLiveFlowchart, setLiveMode, setFetchCallback } = useFlowStore();
 
   const refetch = useCallback(async () => {
     setIsLoading(true);
@@ -213,6 +213,14 @@ export function useLiveData(): UseLiveDataResult {
     },
     [isConnected, topology]
   );
+
+  // Register fetch callback with store
+  useEffect(() => {
+    setFetchCallback(fetchFlowchart);
+    return () => {
+      setFetchCallback(null);
+    };
+  }, [fetchFlowchart, setFetchCallback]);
 
   // Initial load
   useEffect(() => {

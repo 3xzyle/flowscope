@@ -12,7 +12,7 @@ services:
       # Mount Docker socket for container discovery
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - RUST_LOG=info
+      - RUST_LOG=info,flowscope_backend=debug
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8850/health"]
       interval: 30s
@@ -21,6 +21,9 @@ services:
     restart: unless-stopped
     networks:
       - flowscope-network
+    labels:
+      - "com.flowscope.service=backend"
+      - "com.flowscope.version=0.1.0"
 
   flowscope-frontend:
     build:
@@ -30,7 +33,10 @@ services:
     ports:
       - "3150:80"
     depends_on:
-      - flowscope-backend
+      flowscope-backend:
+        condition: service_healthy
+    environment:
+      - BACKEND_URL=http://flowscope-backend:8850
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
@@ -39,7 +45,11 @@ services:
     restart: unless-stopped
     networks:
       - flowscope-network
+    labels:
+      - "com.flowscope.service=frontend"
+      - "com.flowscope.version=0.1.0"
 
 networks:
   flowscope-network:
     driver: bridge
+    name: flowscope-network

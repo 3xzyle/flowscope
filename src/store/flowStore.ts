@@ -13,6 +13,11 @@ interface NavigationItem {
 // Store for live flowcharts fetched from API
 const liveFlowchartCache: Record<string, ServiceFlowchart> = {};
 
+// Callback for fetching live flowcharts - set by useLiveData hook
+let fetchLiveFlowchartCallback:
+  | ((id: string) => Promise<ServiceFlowchart | null>)
+  | null = null;
+
 interface FlowState {
   // Current flowchart being viewed
   currentFlowchartId: string;
@@ -27,13 +32,28 @@ interface FlowState {
   // Data source mode
   isLiveMode: boolean;
 
+  // Design mode (allows drag/drop)
+  isDesignMode: boolean;
+
+  // Loading state for async navigation
+  isNavigating: boolean;
+
+  // Node positions (for design mode persistence)
+  nodePositions: Record<string, { x: number; y: number }>;
+
   // Actions
   navigateToFlowchart: (id: string) => void;
+  navigateToFlowchartAsync: (id: string) => Promise<void>;
   navigateBack: (toIndex?: number) => void;
   selectNode: (node: ServiceNode | null) => void;
   goHome: () => void;
   setLiveFlowchart: (flowchart: ServiceFlowchart) => void;
   setLiveMode: (enabled: boolean) => void;
+  setDesignMode: (enabled: boolean) => void;
+  setNodePosition: (nodeId: string, position: { x: number; y: number }) => void;
+  setFetchCallback: (
+    callback: ((id: string) => Promise<ServiceFlowchart | null>) | null
+  ) => void;
 }
 
 // Get flowchart from cache (live first, then mock)
@@ -53,6 +73,9 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   navigationStack: [{ id: "system-overview", label: "System Overview" }],
   selectedNode: null,
   isLiveMode: false,
+  isDesignMode: false,
+  isNavigating: false,
+  nodePositions: {},
 
   navigateToFlowchart: (id: string) => {
     const { isLiveMode } = get();
@@ -71,6 +94,50 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       ],
       selectedNode: null,
     }));
+  },
+
+  navigateToFlowchartAsync: async (id: string) => {
+    const { isLiveMode, currentFlowchartId } = get();
+    if (currentFlowchartId === id) return;
+
+    // First check cache
+    const cached = getFlowchart(id, isLiveMode);
+    if (cached) {
+      set((state) => ({
+        currentFlowchartId: id,
+        currentFlowchart: cached,
+        navigationStack: [...state.navigationStack, { id, label: cached.name }],
+        selectedNode: null,
+      }));
+      return;
+    }
+
+    // If live mode and callback available, fetch from API
+    if (isLiveMode && fetchLiveFlowchartCallback) {
+      set({ isNavigating: true });
+      try {
+        const flowchart = await fetchLiveFlowchartCallback(id);
+        if (flowchart) {
+          // Cache it
+          liveFlowchartCache[id] = flowchart;
+          set((state) => ({
+            currentFlowchartId: id,
+            currentFlowchart: flowchart,
+            navigationStack: [
+              ...state.navigationStack,
+              { id, label: flowchart.name },
+            ],
+            selectedNode: null,
+            isNavigating: false,
+          }));
+        } else {
+          set({ isNavigating: false });
+        }
+      } catch (error) {
+        console.error("Failed to fetch flowchart:", error);
+        set({ isNavigating: false });
+      }
+    }
   },
 
   navigateBack: (toIndex?: number) => {
@@ -125,5 +192,22 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     if (flowchart) {
       set({ currentFlowchart: flowchart });
     }
+  },
+
+  setDesignMode: (enabled: boolean) => {
+    set({ isDesignMode: enabled });
+  },
+
+  setNodePosition: (nodeId: string, position: { x: number; y: number }) => {
+    set((state) => ({
+      nodePositions: {
+        ...state.nodePositions,
+        [nodeId]: position,
+      },
+    }));
+  },
+
+  setFetchCallback: (callback) => {
+    fetchLiveFlowchartCallback = callback;
   },
 }));

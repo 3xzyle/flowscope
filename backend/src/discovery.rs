@@ -395,13 +395,13 @@ impl DockerDiscovery {
                     .filter(|c| c.category == cat)
                     .cloned()
                     .collect();
-                return Ok(Some(self.generate_category_flowchart(&cat, &filtered, &networks)));
+                return Ok(Some(self.generate_category_flowchart_with_stats(&cat, &filtered, &networks).await));
             }
         }
 
         // Check if it's a container-specific flowchart
         if let Some(container) = containers.iter().find(|c| c.id == id || c.name == id) {
-            return Ok(Some(self.generate_container_flowchart(container, &containers, &networks)));
+            return Ok(Some(self.generate_container_flowchart_with_stats(container, &containers, &networks).await));
         }
 
         Ok(None)
@@ -563,6 +563,145 @@ impl DockerDiscovery {
             nodes,
             connections,
             parent_id: Some("system-overview".to_string()),
+        }
+    }
+
+    /// Generate category flowchart with stats for each container
+    async fn generate_category_flowchart_with_stats(
+        &self,
+        category: &ServiceCategory,
+        containers: &[ContainerInfo],
+        _networks: &[NetworkInfo],
+    ) -> Flowchart {
+        let mut nodes = Vec::new();
+        let mut connections = Vec::new();
+
+        // Sort containers by name for consistent ordering
+        let mut sorted_containers: Vec<_> = containers.to_vec();
+        sorted_containers.sort_by(|a, b| {
+            let num_a = a.name.split('-').last().and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+            let num_b = b.name.split('-').last().and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+            num_a.cmp(&num_b)
+        });
+
+        for container in &sorted_containers {
+            let port = container.ports.first().and_then(|p| p.host_port);
+            
+            // Fetch stats for this container
+            let stats = self.get_container_stats(&container.name).await.ok().flatten();
+            
+            nodes.push(FlowchartNode {
+                id: container.id.clone(),
+                name: container.name.clone(),
+                description: format!("Image: {}", container.image),
+                status: container.status.clone(),
+                node_type: NodeType::Service,
+                category: container.category.clone(),
+                port,
+                child_flowchart: Some(container.name.clone()),
+                metrics: None,
+                stats,
+            });
+        }
+
+        // Create connections for homogeneous services
+        if sorted_containers.len() > 1 {
+            for i in 0..sorted_containers.len() {
+                let source = &sorted_containers[i];
+                let target = &sorted_containers[(i + 1) % sorted_containers.len()];
+                
+                connections.push(FlowchartConnection {
+                    id: format!("{}-to-{}", source.id, target.id),
+                    source: source.id.clone(),
+                    target: target.id.clone(),
+                    label: None,
+                    connection_type: ConnectionType::Network,
+                });
+            }
+        }
+
+        let cat_name = Self::category_display_name(category);
+        Flowchart {
+            id: format!("{:?}-overview", category).to_lowercase(),
+            name: format!("{} Services", cat_name),
+            description: format!("{} services in the {} category", containers.len(), cat_name),
+            nodes,
+            connections,
+            parent_id: Some("system-overview".to_string()),
+        }
+    }
+
+    /// Generate container flowchart with stats
+    async fn generate_container_flowchart_with_stats(
+        &self,
+        container: &ContainerInfo,
+        all_containers: &[ContainerInfo],
+        _networks: &[NetworkInfo],
+    ) -> Flowchart {
+        let mut nodes = Vec::new();
+        let mut connections = Vec::new();
+
+        // Add the main container with stats
+        let main_stats = self.get_container_stats(&container.name).await.ok().flatten();
+        nodes.push(FlowchartNode {
+            id: container.id.clone(),
+            name: container.name.clone(),
+            description: format!("Image: {}", container.image),
+            status: container.status.clone(),
+            node_type: NodeType::Service,
+            category: container.category.clone(),
+            port: container.ports.first().and_then(|p| p.host_port),
+            child_flowchart: None,
+            metrics: None,
+            stats: main_stats,
+        });
+
+        // Find related containers (same network)
+        for other in all_containers {
+            if other.id == container.id {
+                continue;
+            }
+
+            let shared = container.networks.iter().any(|n| {
+                n != "bridge" && other.networks.contains(n)
+            });
+
+            if shared {
+                let other_stats = self.get_container_stats(&other.name).await.ok().flatten();
+                nodes.push(FlowchartNode {
+                    id: other.id.clone(),
+                    name: other.name.clone(),
+                    description: format!("Image: {}", other.image),
+                    status: other.status.clone(),
+                    node_type: NodeType::Service,
+                    category: other.category.clone(),
+                    port: other.ports.first().and_then(|p| p.host_port),
+                    child_flowchart: Some(other.name.clone()),
+                    metrics: None,
+                    stats: other_stats,
+                });
+
+                connections.push(FlowchartConnection {
+                    id: format!("{}-to-{}", container.id, other.id),
+                    source: container.id.clone(),
+                    target: other.id.clone(),
+                    label: None,
+                    connection_type: ConnectionType::Network,
+                });
+            }
+        }
+
+        Flowchart {
+            id: container.name.clone(),
+            name: format!("{} Detail", container.name),
+            description: format!(
+                "Container {} and its {} connected services",
+                container.name,
+                nodes.len() - 1
+            ),
+            nodes,
+            connections,
+            parent_id: Some(format!("{:?}-overview", container.category).to_lowercase()),
         }
     }
 

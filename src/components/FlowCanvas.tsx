@@ -383,7 +383,7 @@ export default function FlowCanvas() {
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        nodesDraggable={isDesignMode}
+        nodesDraggable={true}
         nodesConnectable={isDesignMode}
         elementsSelectable={true}
         zoomOnDoubleClick={false}
